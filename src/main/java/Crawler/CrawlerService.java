@@ -39,7 +39,7 @@ public class CrawlerService {
         return links;
     }
 
-    public void crawl(String address, int depth) throws IOException
+    public String crawl(String address, int depth) throws IOException
     {
         if(validateUrl(address))
         {
@@ -67,10 +67,6 @@ public class CrawlerService {
             {
             }
         }
-    }
-
-    public Set<Map.Entry<String, String>> getCrawledUrls()
-    {
-        return crawledUrls.entrySet();
+        return crawledUrls.keySet().toString();
     }
 }
