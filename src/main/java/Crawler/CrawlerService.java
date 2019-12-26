@@ -1,70 +1,68 @@
 package Crawler;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
+@Slf4j
 @Service
 public class CrawlerService {
 
     private Map<String, String> crawledUrls = new HashMap<>();
 
-    public Boolean validateUrl(String address)
-    {
-        try {
-            URL url = new URL(address);
-            return true;
-        } catch (MalformedURLException e) {
-            return false;
-        }
-    }
-
-    public Document getSite(String address) throws IOException
-    {
-        Document doc = Jsoup.connect(address).get();
-        return doc;
-    }
-
-    public Elements getLinks(Document doc)
-    {
-        Elements allElements = doc.getAllElements();
-        Elements links = allElements.select("a[href]");
-        return links;
-    }
-
-    public String crawl(String address, int depth) throws IOException
-    {
-        if(validateUrl(address))
-        {
-            try
-            {
-                Document currentSite = getSite(address);
-                Elements retrievedUrls = getLinks(currentSite);
-                crawledUrls.put(address, currentSite.html());
-                for (Element link : retrievedUrls)
-                {
-                    if (validateUrl(link.attr("href")) && depth > 0)
-                    {
-                        crawledUrls.put(link.attr("href"), "");
-                    }
+    public String crawl(String address, int depth) throws IOException {
+        Document currentSite = new Document("", "");
+        RestTemplate request = new RestTemplate();
+        ResponseEntity response;
+        Boolean isUrlResolved = false;
+        while (!isUrlResolved) {
+            try {
+                if (!address.startsWith("http")) {
+                    address = "http://" + address;
                 }
-                for (Element link : retrievedUrls)
-                {
-                    if (depth > 0) {
-                        crawl(link.attr("href"), --depth);
-                        depth++;
-                    }
+                response = request.getForEntity(address, String.class);
+            } catch (IllegalArgumentException e) {
+                if (address.isEmpty()) {
+                    log.debug("Blank Address");
+                    isUrlResolved = true;
+                    continue;
                 }
+                log.debug("Request processing failed with root cause, " + e.getCause() + ": " + address);
+                isUrlResolved = true;
+                continue;
+            } catch (HttpClientErrorException e) {
+                log.debug(e.getStatusText() + ": " + address);
+                isUrlResolved = true;
+                continue;
+            } catch (Exception e) {
+                log.debug(e.getMessage() + ": " + address);
+                isUrlResolved = true;
+                continue;
             }
-            catch (IOException e)
-            {
+            if (response.getStatusCode().value() == 200 && response.hasBody()) {
+                currentSite = new Document(address, response.getBody().toString());
+                isUrlResolved = true;
+            } else if (response.getHeaders().containsKey("Location")) {
+                address = response.getHeaders().get("Location").get(0);
+            } else {
+                log.debug(address);
+                log.debug(response.toString());
+                isUrlResolved = true;
+            }
+        }
+        if (depth > 0) {
+            for (String link : currentSite.getLinks()) {
+                crawledUrls.put(link, "");
+            }
+            for (String link : currentSite.getLinks()) {
+                crawl(link, --depth);
+                depth++;
             }
         }
         return crawledUrls.keySet().toString();
