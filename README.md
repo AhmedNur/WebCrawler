@@ -1,1 +1,1 @@
-A simple web crawler. Goes to a given website and records all links found, doing the same for each link found until a given depth is reached.
+A simple web crawler that provides a set of all urls it finds. A basic controller and html file are provided for testing.

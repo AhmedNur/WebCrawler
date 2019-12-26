@@ -7,16 +7,16 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 @Slf4j
 @Service
 public class CrawlerService {
 
-    private Map<String, String> crawledUrls = new HashMap<>();
+    private Set<String> crawledUrls = new HashSet<>();
 
-    public String crawl(String address, int depth) throws IOException {
+    public Set<String> crawl(String address, int depth) throws IOException {
         Document currentSite = new Document("", "");
         RestTemplate request = new RestTemplate();
         ResponseEntity response;
@@ -57,14 +57,12 @@ public class CrawlerService {
             }
         }
         if (depth > 0) {
-            for (String link : currentSite.getLinks()) {
-                crawledUrls.put(link, "");
-            }
+            crawledUrls.addAll(currentSite.getLinks());
             for (String link : currentSite.getLinks()) {
                 crawl(link, --depth);
                 depth++;
             }
         }
-        return crawledUrls.keySet().toString();
+        return crawledUrls;
     }
 }
